@@ -284,12 +284,16 @@
                 </div>
                 <div class="col-md-6">
                   <label class="form-label required">คำนำหน้าชื่อ</label>
-                  <select id="reg_prefix" class="form-select">
+                  <select id="reg_prefix" class="form-select" onchange="togglePrefixOther()">
                     <option value="นาย">นาย</option>
                     <option value="นาง">นาง</option>
                     <option value="นางสาว">นางสาว</option>
                     <option value="ดร.">ดร.</option>
+                    <option value="other">อื่นๆ (ระบุเอง)</option>
                   </select>
+                  <div id="prefix_other_container" class="mt-2" style="display: none;">
+                    <input type="text" id="reg_prefix_other" class="form-control" placeholder="ระบุคำนำหน้าชื่อ เช่น ว่าที่ ร.ต., พระ">
+                  </div>
                 </div>
               </div>
 
