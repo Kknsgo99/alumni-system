@@ -10,6 +10,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- ไลบรารีสำหรับอ่านและแปลงไฟล์ Excel บนบราวเซอร์ -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     :root {
       --primary: #1a56a0;
@@ -66,7 +68,7 @@
     #sidebar .nav-link i { width: 20px; text-align: center; font-size: 1rem; }
 
     /* MAIN */
-    #main-content { margin-left: var(--sidebar-w); padding-top: 60px; min-height: 100vh; display: flex; flex-col: column; justify-content: space-between; }
+    #main-content { margin-left: var(--sidebar-w); padding-top: 60px; min-height: 100vh; display: flex; flex-direction: column; justify-content: space-between; }
     .content-area { padding: 1.5rem; flex-grow: 1; }
 
     /* CARDS */
@@ -81,14 +83,24 @@
     .stat-card .val { font-size: 1.6rem; font-weight: 700; line-height: 1; }
     .stat-card .lbl { font-size: .8rem; color: #777; margin-top: 4px; }
 
-    /* PROFILE AVATAR */
-    .avatar-circle { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-light); }
-    .avatar-placeholder { width: 45px; height: 45px; border-radius: 50%; background: var(--primary-light); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: var(--primary); }
-
     /* REGISTRATION STEP-BY-STEP FLOW */
     .step-form { display: none; }
     .step-form.active { display: block; }
     .step-indicator { font-size: 0.82rem; color: #6c757d; font-weight: 600; }
+
+    /* Drag and drop for Excel */
+    .excel-drop-zone {
+      border: 2px dashed var(--primary);
+      background-color: var(--primary-light);
+      border-radius: 12px;
+      padding: 2rem;
+      text-align: center;
+      transition: background-color 0.2s;
+      cursor: pointer;
+    }
+    .excel-drop-zone:hover {
+      background-color: rgba(26, 86, 160, 0.15);
+    }
 
     /* FOOTER */
     .site-footer {
@@ -141,6 +153,7 @@
     <div class="nav-section">แผงควบคุมระบบ</div>
     <a class="nav-link" id="link-admin-dashboard" onclick="showPage('admin-dashboard')"><i class="bi bi-speedometer2"></i> แดชบอร์ดสถิติ</a>
     <a class="nav-link" id="link-admin-deeka-crud" onclick="showPage('admin-deeka-crud')"><i class="bi bi-folder-plus"></i> จัดการคลังใบฎีกา (CRUD)</a>
+    <a class="nav-link" id="link-admin-excel-import" onclick="showPage('admin-excel-import')"><i class="bi bi-file-earmark-excel"></i> นำเข้าข้อมูลศิษย์เก่าจาก Excel</a>
   </div>
 </div>
 
@@ -163,7 +176,7 @@
   <div class="page-section" id="page-public-search">
     <div class="card shadow-sm">
       <div class="card-header py-3">
-        <h6 class="fw-bold mb-0 text-primary"><i class="bi bi-people-fill"></i> ระบบค้นหาศิษย์เก่าอัจฉริยะ (ฐานข้อมูลครบทุกฟิลด์)</h6>
+        <h6 class="fw-bold mb-0 text-primary"><i class="bi bi-people-fill"></i> ระบบค้นหาศิษย์เก่าอัจฉริยะ</h6>
       </div>
       <div class="card-body">
         <div class="row g-2 mb-3">
@@ -445,6 +458,84 @@
     </div>
   </div>
 
+  <!-- ===== PAGE: ADMIN EXCEL IMPORT ===== -->
+  <div class="page-section" id="page-admin-excel-import">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h6 class="fw-bold m-0 text-primary"><i class="bi bi-file-earmark-excel-fill"></i> ระบบนำเข้าข้อมูลศิษย์เก่าอัจฉริยะจากไฟล์ Excel</h6>
+      </div>
+      <div class="card-body p-4">
+        <p class="text-muted small mb-3">ผู้บริหารหรือแอดมินสามารถบันทึกประวัติข้อมูลศิษย์เก่าร่วมรุ่นได้คราวละหลายๆ รายชื่อ โดยอัปโหลดไฟล์ตาราง Excel (.xlsx, .xls) ตามโครงสร้างตารางคอลัมน์มาตรฐาน</p>
+        
+        <!-- รูปแบบคอลัมน์ Excel แนะนำ -->
+        <div class="alert alert-info border-0 shadow-sm mb-4">
+          <h6 class="fw-bold mb-2 small"><i class="bi bi-info-circle-fill"></i> ข้อแนะนำรูปแบบตารางคอลัมน์ใน Excel:</h6>
+          <p class="small mb-2">ตาราง Excel แถวแรกต้องตั้งหัวตารางให้ตรงกับชื่อคอลัมน์มาตรฐานภาษาไทย หรือภาษาอังกฤษตัวใดตัวหนึ่งด้านล่างนี้:</p>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered bg-white text-center small mb-0 font-monospace" style="font-size: 0.75rem;">
+              <thead class="table-light">
+                <tr>
+                  <th>รุ่น <br><span class="text-muted">(generation)</span></th>
+                  <th>คำนำหน้า <br><span class="text-muted">(prefix)</span></th>
+                  <th>ชื่อจริง <br><span class="text-muted">(firstName)</span></th>
+                  <th>นามสกุล <br><span class="text-muted">(lastName)</span></th>
+                  <th>ชื่อเล่น <br><span class="text-muted">(nickname)</span></th>
+                  <th>เบอร์โทร <br><span class="text-muted">(mobile)</span></th>
+                  <th>ตำแหน่ง <br><span class="text-muted">(position)</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>25</td>
+                  <td>นาย</td>
+                  <td>รักเรียน</td>
+                  <td>วิทยา</td>
+                  <td>มิกซ์</td>
+                  <td>0812345678</td>
+                  <td>ประธานกรรมการ</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <small class="text-danger d-block mt-2">⚠️ ช่อง "รุ่น", "ชื่อจริง/ชื่อ", และ "นามสกุล" จำเป็นต้องระบุข้อมูลให้ครบถ้วน หากเว้นว่างระบบจะข้ามแถวนั้นทันที</small>
+        </div>
+
+        <!-- โซนสำหรับอัปโหลดหรือลากไฟล์มาวาง -->
+        <div class="excel-drop-zone mb-4" onclick="document.getElementById('excel-file-selector').click()">
+          <i class="bi bi-file-earmark-arrow-up text-primary" style="font-size: 2.5rem;"></i>
+          <h6 class="fw-bold mt-2 text-primary">คลิกเพื่อเลือกไฟล์ Excel ของคุณ</h6>
+          <span class="text-muted small">รองรับไฟล์ตารางข้อมูลสกุล .xlsx, .xls</span>
+          <input type="file" id="excel-file-selector" accept=".xlsx, .xls" style="display: none;" onchange="handleExcelFileRead(event)">
+        </div>
+
+        <!-- หน้าต่างพรีวิวตรวจข้อมูลจำลองก่อนส่งจริง -->
+        <div id="excel-preview-block" style="display: none;">
+          <h6 class="fw-bold text-dark mb-3"><i class="bi bi-eye"></i> รายชื่อศิษย์เก่าที่สแกนพบบนไฟล์ (พรีวิวก่อนบันทึก):</h6>
+          <div class="table-responsive mb-3" style="max-height: 350px; border: 1px solid var(--gray-200); border-radius: 8px;">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th class="text-center" style="width: 80px;">รุ่น</th>
+                  <th>คำนำหน้า</th>
+                  <th>ชื่อ-นามสกุล</th>
+                  <th>ชื่อเล่น</th>
+                  <th>เบอร์โทรศัพท์</th>
+                  <th>ตำแหน่งในรุ่น</th>
+                </tr>
+              </thead>
+              <tbody id="excel-preview-tbody"></tbody>
+            </table>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-success px-4 py-2 fw-bold" onclick="commitExcelImport()"><i class="bi bi-cloud-arrow-up"></i> ยืนยันนำเข้าฐานข้อมูล Google Sheets</button>
+            <button class="btn btn-light text-muted" onclick="clearImportedState()"><i class="bi bi-trash"></i> ล้างรายการ</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
 </div>
 </div>
 
@@ -513,6 +604,7 @@
   let currentSession = null;
   let deekaModal = null;
   let chartInstance = null;
+  let importedAlumniTemp = []; // เก็บอาร์เรย์นำเข้า Excel ชั่วคราว
 
   document.addEventListener('DOMContentLoaded', () => {
     deekaModal = new bootstrap.Modal(document.getElementById('deekaModal'));
@@ -547,6 +639,9 @@
             { deekaId: "DK68/001", year: 2568, category: "งบลงทุน", detail: "จัดซื้อเครื่องคอมพิวเตอร์สำหรับการเรียนการสอนเทคโนโลยีสารสนเทศ", amount: 240000, payee: "หจก.ไอทีเน็ตเวิร์ก", fileUrl: "#" },
             { deekaId: "DK68/002", year: 2568, category: "งบดำเนินงาน", detail: "จัดจ้างปรับปรุงภูมิทัศน์ลานเอนกประสงค์และสนามกีฬาในร่ม", amount: 450000, payee: "วิศวกรรมโยธา บิลเดอร์", fileUrl: "#" }
           ];
+        }
+        if (action === 'importAlumniRecords') {
+          mock = { success: true, message: "นำเข้าข้อมูลจำลองจาก Excel สำเร็จแล้ว (โหมด Demo)" };
         }
         callback(mock);
       }, 500);
@@ -907,6 +1002,98 @@
         loadDeekaTable(); 
       });
     }
+  }
+
+  // ==========================================
+  // จัดการนำเข้าไฟล์ Excel และจัดเตรียมข้อมูลพรีวิว
+  // ==========================================
+  function handleExcelFileRead(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const data = e.target.result;
+      try {
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet);
+        
+        if (json.length === 0) {
+          Swal.fire("ข้อผิดพลาด", "ไม่พบแถวข้อมูลศิษย์เก่าในไฟล์ Excel ที่เลือก", "error");
+          return;
+        }
+        
+        importedAlumniTemp = json;
+        renderExcelPreview(json);
+      } catch (error) {
+        Swal.fire("ข้อผิดพลาด", "ไม่สามารถอ่านและแปลงสลับโครงสร้างไฟล์ Excel ได้: " + error.message, "error");
+      }
+    };
+    reader.readAsBinaryString(file);
+  }
+
+  // เรนเดอร์ตารางตรวจสอบรายการจาก Excel
+  function renderExcelPreview(data) {
+    const tbody = document.getElementById('excel-preview-tbody');
+    tbody.innerHTML = data.map(item => {
+      const gen = item["รุ่น"] || item["รุ่นที่"] || item.generation || "-";
+      const prefix = item["คำนำหน้า"] || item["คำนำหน้าชื่อ"] || item.prefix || "นาย";
+      const fn = item["ชื่อ"] || item["ชื่อจริง"] || item.firstName || "-";
+      const ln = item["นามสกุล"] || item.lastName || "-";
+      const nick = item["ชื่อเล่น"] || item.nickname || "-";
+      const mobile = item["เบอร์โทร"] || item["เบอร์โทรศัพท์"] || item["มือถือ"] || item.mobile || "-";
+      const position = item["ตำแหน่ง"] || item["ตำแหน่งในรุ่น"] || item.position || "กรรมการ";
+      
+      return `<tr>
+        <td class="text-center"><span class="badge bg-primary rounded-pill">รุ่น ${gen}</span></td>
+        <td>${prefix}</td>
+        <td><strong>${fn} ${ln}</strong></td>
+        <td>${nick}</td>
+        <td>${mobile}</td>
+        <td><span class="badge bg-info text-dark">${position}</span></td>
+      </tr>`;
+    }).join('');
+    
+    document.getElementById('excel-preview-block').style.display = 'block';
+  }
+
+  // ยืนยันบันทึกฐานข้อมูลนำเข้าทั้งหมดแบบชุดใหญ่
+  function commitExcelImport() {
+    if (importedAlumniTemp.length === 0) return;
+    
+    Swal.fire({
+      title: 'ยืนยันบันทึกข้อมูลใช่หรือไม่?',
+      text: `ต้องการบันทึกประวัติศิษย์เก่าทั้งหมดจำนวน ${importedAlumniTemp.length} รายชื่อ ลงคลังฐานข้อมูลโรงเรียนหรือไม่`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#1a56a0',
+      confirmButtonText: 'ยืนยันนำเข้า',
+      cancelButtonText: 'ยกเลิก'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.showLoading();
+        runBackend('importAlumniRecords', { alumniList: importedAlumniTemp }, res => {
+          Swal.close();
+          if (res.success) {
+            Swal.fire('นำเข้าสำเร็จ', res.message, 'success');
+            clearImportedState();
+            showPage('admin-dashboard');
+          } else {
+            Swal.fire('เกิดข้อผิดพลาด', res.message, 'error');
+          }
+        });
+      }
+    });
+  }
+
+  // ล้างค่าฟอร์มนำเข้า Excel
+  function clearImportedState() {
+    document.getElementById('excel-file-selector').value = "";
+    document.getElementById('excel-preview-tbody').innerHTML = "";
+    document.getElementById('excel-preview-block').style.display = "none";
+    importedAlumniTemp = [];
   }
 </script>
 </body>
