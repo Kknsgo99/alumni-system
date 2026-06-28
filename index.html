@@ -591,6 +591,17 @@
     document.getElementById('sidebar').classList.toggle('open'); 
   }
 
+  // ระบบสลับอินพุตระบุคำนำหน้าชื่ออื่นๆ
+  function togglePrefixOther() {
+    const prefixSelect = document.getElementById('reg_prefix');
+    const container = document.getElementById('prefix_other_container');
+    if (prefixSelect.value === 'other') {
+      container.style.display = 'block';
+    } else {
+      container.style.display = 'none';
+    }
+  }
+
   // ระบบ Register (Step-by-Step)
   function changeStep(s) { 
     document.querySelectorAll('.step-form').forEach(f => f.classList.remove('active')); 
@@ -603,6 +614,13 @@
       Swal.fire('เตือน', 'กรุณากรอกข้อมูลส่วนตัวในฟิลด์ที่จำเป็น (*) ให้ครบถ้วน', 'warning');
       return;
     }
+    
+    // ตรวจสอบคำนำหน้าชื่อกรณีระบุเอง
+    if (document.getElementById('reg_prefix').value === 'other' && !document.getElementById('reg_prefix_other').value.trim()) {
+      Swal.fire('เตือน', 'กรุณาระบุคำนำหน้าชื่อที่คุณพิมพ์ด้วยตนเอง', 'warning');
+      return;
+    }
+
     Swal.showLoading();
     runBackend('sendOTPToPhone', { mobile: mobile }, res => {
       Swal.close();
@@ -635,11 +653,21 @@
       Swal.fire('รหัสผ่านไม่ตรงกัน', 'กรุณายืนยันรหัสผ่านใหม่อีกครั้งให้ตรงกัน', 'error');
       return;
     }
+
+    // สกัดค่าคำนำหน้าชื่อ
+    let prefixVal = document.getElementById('reg_prefix').value;
+    if (prefixVal === 'other') {
+      prefixVal = document.getElementById('reg_prefix_other').value.trim();
+      if (!prefixVal) {
+        Swal.fire('เตือน', 'กรุณาระบุคำนำหน้าชื่อที่คุณระบุเอง', 'warning');
+        return;
+      }
+    }
     
     Swal.showLoading();
     runBackend('finalRegisterAlumni', {
       generation: document.getElementById('reg_generation').value,
-      prefix: document.getElementById('reg_prefix').value,
+      prefix: prefixVal,
       firstName: document.getElementById('reg_firstName').value,
       lastName: document.getElementById('reg_lastName').value,
       nickname: document.getElementById('reg_nickname').value,
@@ -706,6 +734,7 @@
       let filtered = res.data.filter(item => {
         let mGen = gen ? String(item.generation) === String(gen) : true;
         let matchText = q ? (
+          String(item.prefix).toLowerCase().includes(q) ||
           String(item.firstName).toLowerCase().includes(q) ||
           String(item.lastName).toLowerCase().includes(q) ||
           String(item.nickname).toLowerCase().includes(q) ||
